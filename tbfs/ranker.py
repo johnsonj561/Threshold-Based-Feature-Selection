@@ -120,7 +120,7 @@ class TBFSRanker:
         """Load rankings that were already computed"""
         self.rankings = pd.read_csv(input_file, index_col="feature")
 
-    def top_k_features_by_metric(self, metric, k):
+    def top_k_features_by_metric(self, k, metric):
         """Return top K features for a metric."""
         ascending = metric in RANK_ASCENDING
         return (
