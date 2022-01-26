@@ -5,7 +5,7 @@ Python implementation of [TBFS](https://digitalcommons.wku.edu/cgi/viewcontent.c
 ## Installation
 
 ```
-pip install git+https://github.com/johnsonj561/O2U-Net
+pip install git+https://github.com/johnsonj561/Threshold-Based-Feature-Selection
 ```
 
 ## Usage
