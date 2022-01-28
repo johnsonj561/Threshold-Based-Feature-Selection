@@ -37,20 +37,23 @@ metrics = [
 
 
 class TBFSRanker:
-    def __init__(self, t_delta=0.01):
+    def __init__(self, t_delta=0.01, thresholds=None):
         """Create an instance of TBFS Feature Ranker.
 
         Parameters
         ----------
         t_delta: float
             Delta threshold used to enumerate thresholds for computing performance metrics.
-        log_dir: string
-            Directory to write log files to.
+        thresholds: list
+            List of thresholds to use when performing fit. Overrides t_delta if not None.
 
         """
         self.t_delta = t_delta
-        self.threshold_count = int(1.0 / t_delta)
-        logger.info(f"TbFeatureRanker initialized with t_delta {t_delta}")
+        self.thresholds = np.arange(start=0, stop=1 + self.t_delta, step=self.t_delta)
+        if thresholds is not None:
+          self.thresholds = thresholds
+        self.threshold_count = len(self.thresholds)
+        logger.info(f"TBFSRanker initialized with t_delta {t_delta}")
 
     def fit(self, x, y):
         """Fit TBFS ranker to data set (x, y) and generate feature rankings.
@@ -82,12 +85,10 @@ class TBFSRanker:
             shape=(self.threshold_count, len(self.columns), len(CONFUSION_MATRIX))
         )
         logger.info(f"Enumerating {self.threshold_count} thresholds.")
-        for t_idx, t in enumerate(
-            np.arange(start=self.t_delta, stop=1 + self.t_delta, step=self.t_delta)
-        ):
+        for t_idx, t in enumerate(self.thresholds):
             # log percentage completed
             perc_complete = int(t_idx / self.threshold_count * 100)
-            if perc_complete % 10 == 0:
+            if perc_complete % 10 == 0 and perc_complete != 0:
                 logger.info(f"{perc_complete} % of thresholds complete.")
 
             # compute predictions against the threhsold
