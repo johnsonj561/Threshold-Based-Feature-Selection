@@ -73,13 +73,11 @@ tbfs2.top_k_features_by_metric(10, 'f-score')
 
 ### Custom Threshold Ranges
 
-When working with highly imbalanced data, we often want to explore very small thresholds.
-
-For example, a data set with minority class size of 0.01% generally requires a threshold of 0.0001.
-
 Setting t_delta to 0.0001 would cause the TBFS ranker to enumerate 10,000 thresholds and will drastically increase run time.
 
-We can address this by providing a custom threshold range that varies t_delta. The below example reduces 10,000 thresholds to < 500 thresholds.
+We can use custom thresholds to decrease/increase t-delta in certain regions of the search space.
+
+The below example reduces 10,000 thresholds to < 500 thresholds.
 
 ```python
 thresholds = [
