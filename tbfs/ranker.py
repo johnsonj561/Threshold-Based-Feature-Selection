@@ -111,8 +111,6 @@ class TBFSRanker:
         self.rankings = self._compute_rankings(scores)
         logger.info("Features rankings computed.")
 
-        return self.rankings
-
     def to_csv(self, output_file):
         """Save rankings computed by fit method to csv file."""
         self.rankings.to_csv(output_file, index_label="feature")
