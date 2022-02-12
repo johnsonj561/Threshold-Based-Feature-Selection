@@ -49,11 +49,15 @@ class TBFSRanker:
 
         """
         self.t_delta = t_delta
-        self.thresholds = np.arange(start=0, stop=1 + self.t_delta, step=self.t_delta)
         if thresholds is not None:
-          self.thresholds = thresholds
+            self.thresholds = thresholds
+            logger.info(f"TBFSRanker initialized with thresholds: {self.thresholds}")
+        else:
+            self.thresholds = np.arange(
+                start=0, stop=1 + self.t_delta, step=self.t_delta
+            )
+            logger.info(f"TBFSRanker initialized with t_delta {t_delta}")
         self.threshold_count = len(self.thresholds)
-        logger.info(f"TBFSRanker initialized with t_delta {t_delta}")
 
     def fit(self, x, y):
         """Fit TBFS ranker to data set (x, y) and generate feature rankings.
