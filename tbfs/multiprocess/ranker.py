@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import auc, confusion_matrix
 from sklearn.preprocessing import MinMaxScaler
+import multiprocessing as mp
+import ctypes
 
 np.seterr(divide="ignore", invalid="ignore")
 
@@ -36,26 +38,45 @@ metrics = [
 ]
 
 
-def apply_threshold(x, y, t):
+shared_x = None
+shared_y = None
+
+
+def set_shared_x(x):
+    global shared_x
+    x_dtypes = dict(list(zip(x.columns, x.dtypes)))
+    mp_arr = mp.Array(ctypes.c_double, x.values.reshape(-1))
+    shared_x = pd.DataFrame(np.frombuffer(mp_arr.get_obj()).reshape(x.shape), columns=x.columns).astype(x_dtypes)
+
+    
+def set_shared_y(y):
+    global shared_y
+    mp_arr = mp.Array(ctypes.c_double, y)
+    shared_y = np.frombuffer(mp_arr.get_obj())
+    
+
+def apply_threshold(t):
+    global shared_x
     # compute predictions against the threhsold
-    predictions = pd.DataFrame(np.where(x >= t, 1, 0), columns=x.columns)
+    predictions = pd.DataFrame(np.where(shared_x >= t, 1, 0), columns=shared_x.columns)
 
     # record score for each (feature, metric) pair
     threshold_scores = np.zeros(
-        shape=(len(x.columns), len(CONFUSION_MATRIX))
+        shape=(len(shared_x.columns), len(CONFUSION_MATRIX))
     )
 
     # iterate over columns
-    for i, col in enumerate(x.columns):
+    for i, col in enumerate(shared_x.columns):
         # record confusion matrix for each column
-        tn, fp, fn, tp = confusion_matrix(y, predictions[col]).ravel()
+        tn, fp, fn, tp = confusion_matrix(shared_y, predictions[col]).ravel()
         threshold_scores[i] = [tn, fp, fn, tp]
-        
+    
+    del predictions
     return np.array(threshold_scores)
 
 
 class TBFSRanker:
-    def __init__(self, t_delta=0.01, thresholds=None):
+    def __init__(self, t_delta=0.01, thresholds=None, n_jobs=1):
         """Create an instance of TBFS Feature Ranker.
 
         Parameters
@@ -68,6 +89,7 @@ class TBFSRanker:
         """
         self.t_delta = t_delta
         self.thresholds = np.arange(start=0, stop=1 + self.t_delta, step=self.t_delta)
+        self.n_jobs = n_jobs
         if thresholds is not None:
             self.thresholds = thresholds
         self.threshold_count = len(self.thresholds)
@@ -97,15 +119,18 @@ class TBFSRanker:
         x = scaler.fit_transform(x)
         x = pd.DataFrame(x, columns=self.columns)
         logger.info("Normalized input features.")
+        
+        # update global reference to x and y for processes to read from
+        set_shared_x(x)
+        set_shared_y(y)
 
         # record score for each (threshold, metric, feature)
-        scores = np.zeros(
-            shape=(self.threshold_count, len(self.columns), len(CONFUSION_MATRIX))
-        )
-        logger.info(f"Enumerating {self.threshold_count} thresholds.")
-        for t_idx, t in enumerate(self.thresholds):
-            scores[t_idx] = apply_threshold(x, y, t)
-
+        scores = []
+        logger.info(f"Enumerating {self.threshold_count} thresholds across {self.n_jobs} processes.")
+        with mp.Pool(processes = self.n_jobs) as Pool:
+            scores = Pool.map(apply_threshold, self.thresholds)
+        
+        scores = np.array(scores)
         logger.info("Scores computed for all thresholds.")
         self.rankings = self._compute_rankings(scores)
         logger.info("Features rankings computed.")
